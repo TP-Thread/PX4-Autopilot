@@ -98,33 +98,40 @@
 #	evaluating to false.
 #
 #=============================================================================
-
+# 设置CMake最低版本要求为 3.2
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
 
+# 设置PX4源目录和二进制目录的变量
 set(PX4_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(PX4_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
+# 添加PX4源目录下的CMake目录到CMake模块搜索路径
 list(APPEND CMAKE_MODULE_PATH ${PX4_SOURCE_DIR}/cmake)
+# 包含一个名为 px4_parse_function_args 的 CMake 模块文件到当前的 CMakeLists.txt 文件中
 include(px4_parse_function_args)
 
 #=============================================================================
 # git
 #
+# 包含一个名为 px4_git 的 CMake 模块文件到当前的 CMakeLists.txt 文件中
 include(px4_git)
 
+# 使用execute_process命令调用git命令获取当前版本号放到 PX4_GIT_TAG 中
 execute_process(
-	COMMAND git describe --exclude ext/* --always --tags
-	OUTPUT_VARIABLE PX4_GIT_TAG
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-	WORKING_DIRECTORY ${PX4_SOURCE_DIR}
+	COMMAND git describe --exclude ext/* --always --tags	# 命令获取项目的版本标签信息
+	OUTPUT_VARIABLE PX4_GIT_TAG	# 将命令的输出存储在名为 PX4_GIT_TAG 的变量中
+	OUTPUT_STRIP_TRAILING_WHITESPACE	# 在将命令输出存储在变量中时，去除输出的尾随空白字符
+	WORKING_DIRECTORY ${PX4_SOURCE_DIR}	# 定命令在 ${PX4_SOURCE_DIR} 目录中执行
 	)
-message(STATUS "PX4 version: ${PX4_GIT_TAG}")
+message(STATUS "PX4 version: ${PX4_GIT_TAG}")	# 打印PX4的版本号
 
+# 定义全局属性，用于存储PX4模块库
 define_property(GLOBAL PROPERTY PX4_MODULE_LIBRARIES
                  BRIEF_DOCS "PX4 module libs"
                  FULL_DOCS "List of all PX4 module libraries"
                  )
 
+# 定义全局属性，用于存储PX4模块路径
 define_property(GLOBAL PROPERTY PX4_MODULE_PATHS
                  BRIEF_DOCS "PX4 module paths"
                  FULL_DOCS "List of paths to all PX4 modules"
@@ -133,18 +140,25 @@ define_property(GLOBAL PROPERTY PX4_MODULE_PATHS
 #=============================================================================
 # configuration
 #
-
+# 设置 CONFIG 的值为px4_sitl_default, 这个值在执行make targets_default 是会被设置成targets_default
+# 设置 CONFIG 为缓存变量，类型是字符串。缓存变量是一种特殊类型的变量，可以用于在 CMake 配置期间与用户交互，用户可以设置其值
 set(CONFIG "px4_sitl_default" CACHE STRING "desired configuration")
 
+# 包含 px4_add_module.cmake 文件到当前的 CMakeLists.txt 文件中
+# px4_add_module 函数用来添加对不同平台的一些编译选项
 include(px4_add_module)
-set(config_module_list)
+set(config_module_list)	# 创建config_module_list变量
 
+# 包含 px4_config.cmake 文件到当前的 CMakeLists.txt 文件中，用于配置PX4项目
+# boards 文件夹下所有子文件包括的cmake 文件中查找CONFIG 对应的 .cmake 文件, 比如当 CONFIG 的值为px4_sitl_default 是查找的文件为px4/sitl/default.cmake. 对于每个通配符匹配到的.cmake 文件,把文件路径切分为三部分分别放入vendor, model和label 变量中, 然后通过不同的拼接组合和CONFIG 的值进行比较, 如果相等则设置 PX4_CONFIG_FILE 的值为当前的cmake 文件
 include(px4_config)
-include(px4_add_board)
-include(${PX4_CONFIG_FILE})
+include(px4_add_board)	# 包含px4_add_board模块，该函数设置了 PX4_CONFIG 和 PX4_PLATFORM 两个变量
+include(${PX4_CONFIG_FILE})	# 包含目标飞控板的 .cmake 配置信息
+# 打印PX4的配置和平台信息
 message(STATUS "PX4 config: ${PX4_CONFIG}")
 message(STATUS "PX4 platform: ${PX4_PLATFORM}")
 
+# 如果平台为 "posix"，则检查是否启用了锁步调度器
 if(${PX4_PLATFORM} STREQUAL "posix")
 	if(ENABLE_LOCKSTEP_SCHEDULER)
 		add_definitions(-DENABLE_LOCKSTEP_SCHEDULER)
@@ -154,23 +168,28 @@ if(${PX4_PLATFORM} STREQUAL "posix")
 	endif()
 endif()
 
-# external modules
+# 外部模块位置
 set(EXTERNAL_MODULES_LOCATION "" CACHE STRING "External modules source location")
-
+# 如果指定了EXTERNAL_MODULES_LOCATION，则获取其绝对路径
 if(NOT EXTERNAL_MODULES_LOCATION STREQUAL "")
 	get_filename_component(EXTERNAL_MODULES_LOCATION "${EXTERNAL_MODULES_LOCATION}" ABSOLUTE)
 endif()
 
+# 定义全局属性，用于存储PX4模块配置文件
 set_property(GLOBAL PROPERTY PX4_MODULE_CONFIG_FILES)
 
+# 包含特定平台的CMake配置文件
 include(platforms/${PX4_PLATFORM}/cmake/px4_impl_os.cmake)
+# 将平台特定的CMake模块路径添加到CMake模块路径中
 list(APPEND CMAKE_MODULE_PATH ${PX4_SOURCE_DIR}/platforms/${PX4_PLATFORM}/cmake)
 
+# 如果存在平台特定的初始化脚本 init.cmake，则包含它
 if(EXISTS "${PX4_SOURCE_DIR}/platforms/${PX4_PLATFORM}/cmake/init.cmake")
 	include(init)
 endif()
 
-# CMake build type (Debug Release RelWithDebInfo MinSizeRel Coverage)
+# CMake 构建类型 (Debug Release RelWithDebInfo MinSizeRel Coverage)
+# 如果未指定CMAKE_BUILD_TYPE，则设置默认值
 if(NOT CMAKE_BUILD_TYPE)
 	if(${PX4_PLATFORM} STREQUAL "nuttx")
 		set(PX4_BUILD_TYPE "MinSizeRel")
@@ -181,6 +200,7 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE ${PX4_BUILD_TYPE} CACHE STRING "Build type" FORCE)
 endif()
 
+# 根据构建类型设置最大优化级别
 if((CMAKE_BUILD_TYPE STREQUAL "Debug") OR (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 	set(MAX_CUSTOM_OPT_LEVEL -O0)
 elseif(CMAKE_BUILD_TYPE MATCHES "Sanitizer")
@@ -195,16 +215,19 @@ else()
 	endif()
 endif()
 
+# 设置CMAKE_BUILD_TYPE支持的选项
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug;Release;RelWithDebInfo;MinSizeRel;Coverage;AddressSanitizer;UndefinedBehaviorSanitizer")
-message(STATUS "cmake build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "cmake build type: ${CMAKE_BUILD_TYPE}")	# 打印CMake的构建类型
 
 #=============================================================================
 # project definition
 #
+# 创建一个名为 "px4" 的项目，主要是一个C++项目，但也包括一些C和汇编的源代码
 project(px4 CXX C ASM)
-
+# 设置package-contact变量，用于联系PX4维护团队
 set(package-contact "px4users@googlegroups.com")
 
+# 指定C/C++标准
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
@@ -223,7 +246,7 @@ endif()
 
 #=============================================================================
 
-# gold linker - use if available (posix only for now)
+# 如果可用，启用gold链接器（目前仅支持posix平台）
 if(${PX4_PLATFORM} STREQUAL "posix")
 	include(CMakeDependentOption)
 	CMAKE_DEPENDENT_OPTION(USE_LD_GOLD
@@ -244,7 +267,7 @@ endif()
 
 #=============================================================================
 
-# Setup install paths
+# 设置安装路径
 if(${PX4_PLATFORM} STREQUAL "posix")
 	# This makes it possible to dynamically load code which depends on symbols
 	# inside the px4 executable.
@@ -268,7 +291,7 @@ include(ccache)
 # find programs and packages
 #
 
-# see if catkin was invoked to build this
+# 查看是否通过catkin构建项目
 if (CATKIN_DEVEL_PREFIX)
 	message(STATUS "catkin ENABLED")
 	find_package(catkin REQUIRED)
@@ -280,8 +303,7 @@ if (CATKIN_DEVEL_PREFIX)
 endif()
 
 # Python
-# If using catkin, Python 2 is found since it points
-# to the Python libs installed with the ROS distro
+# 如果使用catkin，将找到Python 2，因为它指向与ROS发行版一起安装的Python库
 if (NOT CATKIN_DEVEL_PREFIX)
 	find_package(PythonInterp 3)
 	# We have a custom error message to tell users how to install python3.
@@ -294,6 +316,7 @@ else()
 	find_package(PythonInterp REQUIRED)
 endif()
 
+# 可选项：启用Python代码覆盖率，未开启
 option(PYTHON_COVERAGE "Python code coverage" OFF)
 if(PYTHON_COVERAGE)
 	message(STATUS "python coverage enabled")
@@ -301,7 +324,7 @@ if(PYTHON_COVERAGE)
 endif()
 
 #=============================================================================
-# get chip and chip manufacturer
+# 获取芯片和芯片制造商信息
 #
 px4_os_determine_build_chip()
 if(NOT PX4_CHIP_MANUFACTURER)
@@ -312,7 +335,7 @@ if(NOT PX4_CHIP)
 endif()
 
 #=============================================================================
-# build flags
+# 构建标志设置
 #
 include(px4_add_common_flags)
 px4_add_common_flags()
@@ -328,11 +351,12 @@ endif()
 #=============================================================================
 # message, and airframe generation
 #
+# 包含px4_metadata模块，用于生成PX4飞行器信息
 include(px4_metadata)
 
-add_subdirectory(msg EXCLUDE_FROM_ALL)
+add_subdirectory(msg EXCLUDE_FROM_ALL)	# 生成uORB消息定义
 
-px4_generate_airframes_xml(BOARD ${PX4_BOARD})
+px4_generate_airframes_xml(BOARD ${PX4_BOARD})# 根据PX4板信息生成PX4飞行器XML定义
 
 #=============================================================================
 # external projects
@@ -340,8 +364,8 @@ px4_generate_airframes_xml(BOARD ${PX4_BOARD})
 set(ep_base ${PX4_BINARY_DIR}/external)
 set_property(DIRECTORY PROPERTY EP_BASE ${ep_base})
 
-# add external project install folders to build
-# add the directories so cmake won't warn
+# 将外部项目的安装目录添加到构建中
+# 添加这些目录以防止CMake生成警告
 execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${ep_base})
 execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${ep_base}/Install)
 execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${ep_base}/Install/lib)
@@ -366,8 +390,8 @@ endif()
 #=============================================================================
 # Testing - Automatic unit and integration testing with CTest
 #
-
-# optionally enable cmake testing (supported only on posix)
+# 测试 - 使用CTest进行自动单元测试和集成测试
+# 可选项：配置CMake测试（仅支持posix）
 option(CMAKE_TESTING "Configure test targets" OFF)
 if(${PX4_CONFIG} STREQUAL "px4_sitl_test")
 	set(CMAKE_TESTING ON)
@@ -376,10 +400,10 @@ if(CMAKE_TESTING)
 	include(CTest) # sets BUILD_TESTING variable
 endif()
 
-# enable test filtering to run only specific tests with the ctest -R regex functionality
+# 启用测试筛选，以仅运行具有ctest -R正则表达式功能的特定测试
 set(TESTFILTER "" CACHE STRING "Filter string for ctest to selectively only run specific tests (ctest -R)")
 
-# if testing is enabled download and configure gtest
+# 如果启用了测试，则下载和配置gtest
 list(APPEND CMAKE_MODULE_PATH ${PX4_SOURCE_DIR}/cmake/gtest/)
 include(px4_add_gtest)
 if(BUILD_TESTING)
@@ -401,32 +425,38 @@ endif()
 #=============================================================================
 # subdirectories
 #
+# 创建一个名为parameters_interface的接口库
 add_library(parameters_interface INTERFACE)
 
-include(px4_add_library)
-add_subdirectory(src/lib EXCLUDE_FROM_ALL)
+include(px4_add_library)	# 包含px4_add_library模块
+add_subdirectory(src/lib EXCLUDE_FROM_ALL)	# 添加lib目录的子目录
 
-add_subdirectory(platforms/${PX4_PLATFORM}/src/px4)
-add_subdirectory(platforms EXCLUDE_FROM_ALL)
+add_subdirectory(platforms/${PX4_PLATFORM}/src/px4)	# 添加platforms/${PX4_PLATFORM}/src/px4目录
+add_subdirectory(platforms EXCLUDE_FROM_ALL)		# 添加platforms目录的子目录（不包括所有子目录）
 
+# 如果PX4_BOARD_DIR目录存在，则添加PX4_BOARD_DIR目录
 if(EXISTS "${PX4_BOARD_DIR}/CMakeLists.txt")
 	add_subdirectory(${PX4_BOARD_DIR})
 endif()
 
+# 添加src目录下各个模块的子目录
 foreach(module ${config_module_list})
 	add_subdirectory(src/${module})
 endforeach()
 
-# must be the last module before firmware
+# 必须是固件之前的最后一个模块，以生成已包含模块的内置模块
+# 添加src/lib/parameters目录
 add_subdirectory(src/lib/parameters EXCLUDE_FROM_ALL)
 target_link_libraries(parameters_interface INTERFACE parameters)
 
-# firmware added last to generate the builtin for included modules
+# 最后，添加platforms/${PX4_PLATFORM}目录
+# 这里包括构建PX4固件的最后一步
 add_subdirectory(platforms/${PX4_PLATFORM})
 
 #=============================================================================
 # uORB graph generation: add a custom target 'uorb_graph'
 #
+# 生成uORB图：添加名为'uorb_graph'的自定义目标
 set(uorb_graph_config ${PX4_BOARD})
 
 set(graph_module_list "")
@@ -445,11 +475,11 @@ add_custom_command(OUTPUT ${uorb_graph_config}
 add_custom_target(uorb_graph DEPENDS ${uorb_graph_config})
 
 
-include(doxygen)
-include(metadata)
-include(package)
+include(doxygen)	# 包含doxygen模块
+include(metadata)	# 包含metadata模块
+include(package)	# 包含package模块
 
-# print size
+# 打印目标文件的大小
 add_custom_target(size
 	COMMAND size $<TARGET_FILE:px4>
 	DEPENDS px4
