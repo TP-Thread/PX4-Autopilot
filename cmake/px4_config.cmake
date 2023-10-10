@@ -33,23 +33,32 @@
 
 # find PX4 config
 #  look for in tree board config that matches CONFIG input
+# 这段CMake代码的主要作用是从PX4项目的板载配置文件（通常以.cmake文件形式存在）中选择一个与给定的CONFIG参数匹配的配置文件
+# 并将其路径存储在PX4_CONFIG_FILE变量中。
 if(NOT PX4_CONFIG_FILE)
-
+	# 在PX4项目的boards目录中递归搜索所有.cmake文件，并将它们的相对路径存储在board_configs列表中
 	file(GLOB_RECURSE board_configs
 		RELATIVE "${PX4_SOURCE_DIR}/boards"
 		"boards/*.cmake"
 		)
 
+	# 将PX4_CONFIGS变量设置为board_configs列表的值，并将其类型设置为CACHE STRING，并强制存储。
 	set(PX4_CONFIGS ${board_configs} CACHE STRING "PX4 board configs" FORCE)
 
+	# foreach循环，用于遍历列表中的元素。在这里，${board_configs}是一个包含文件名的列表，filename是循环中的迭代变量，
+	# 每次循环时会将列表中的一个文件名赋值给filename，然后执行循环体中的操作。
 	foreach(filename ${board_configs})
 		# parse input CONFIG into components to match with existing in tree configs
 		#  the platform prefix (eg nuttx_) is historical, and removed if present
+		# 将变量 filename 中的 ".cmake" 替换为空字符串 ""，并将结果存储到变量 filename_stripped 中
 		string(REPLACE ".cmake" "" filename_stripped ${filename})
+		# 将变量 filename_stripped 中的 "/" 替换为 ";"，并将结果存储到变量 config 中
 		string(REPLACE "/" ";" config ${filename_stripped})
+		# 计算列表变量config中的元素数量，并将结果存储在变量config_len中
 		list(LENGTH config config_len)
 
 		if(${config_len} EQUAL 3)
+			# 获取列表中的元素，索引从0开始
 			list(GET config 0 vendor)
 			list(GET config 1 model)
 			list(GET config 2 label)
