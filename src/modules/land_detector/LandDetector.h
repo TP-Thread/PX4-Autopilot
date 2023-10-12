@@ -40,6 +40,7 @@
  * @author Lorenz Meier <lorenz@px4.io>
  */
 
+//预处理指令，用于防止头文件的多重包含，这是一个更现代的方法，用于替代传统的 #ifndef, #define, 和 #endif 预处理宏组合
 #pragma once
 
 #include <float.h>
